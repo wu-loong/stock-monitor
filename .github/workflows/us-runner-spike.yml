@@ -1,0 +1,20 @@
+name: us-runner-spike
+
+# Plan-② head-risk spike: verify the 3 A-share data sources are reachable from
+# GitHub's hosted (US/Azure) runners. Manual-trigger only.
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Probe data-source reachability from US runner
+        run: PYTHONPATH=. python ci/us_runner_probe.py
