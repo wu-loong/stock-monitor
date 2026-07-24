@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: "5 7-19 * * 1-5"      # UTC; 北京 15:05–次日 03:05
   workflow_dispatch:
+    inputs:
+      trade_date:
+        description: "回填指定交易日 YYYY-MM-DD(留空=今天)"
+        required: false
+        default: ""
+      loop:
+        description: "一次性跑完该日所有批次(回填用,true/false)"
+        required: false
+        default: "false"
 
 concurrency:
   group: daily-scan
@@ -12,10 +21,12 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120          # 容纳 loop 回填(一次性跑完约 1 小时);单批 cron 远低于此
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TRADE_DATE: ${{ github.event.inputs.trade_date }}
+      BACKFILL_LOOP: ${{ github.event.inputs.loop == 'true' && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
