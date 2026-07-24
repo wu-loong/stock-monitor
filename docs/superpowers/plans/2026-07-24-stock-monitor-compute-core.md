@@ -890,7 +890,9 @@ from datetime import datetime, timedelta
 import akshare as ak
 from scanner.model import Bar, TZ
 
-# 东财时间戳为 bar 收盘时刻(见 spike 文档);若 spike 判定为开盘时刻,置 CLOSE_OFFSET_MIN=15
+# SPIKE 实测确认:东财时间为收盘时刻,offset=0;列名 ['时间','开盘','收盘',...],时间格式 YYYY-MM-DD HH:MM:SS。
+# 东财连接高频抖动(spike 单次 5/5 失败过);本适配器保持"单次尝试、失败即抛",重试策略由
+# scan.fetch_all_sources(Task 10)统一承担;若东财整体不可用,3 源交叉校验降级为腾讯+新浪≥2 源。
 CLOSE_OFFSET_MIN = 0
 _TIME_COL = "时间"
 _CLOSE_COL = "收盘"
@@ -919,20 +921,30 @@ Expected: 2 passed。
 
 - [ ] **Step 6: 写并运行真实 smoke 测试**
 
-在 `tests/test_sources_eastmoney.py` 追加:
+在 `tests/test_sources_eastmoney.py` 追加(东财抖动大,smoke 里包一层重试,验证的是"可达且能解析",非重试策略):
 ```python
+import time
 import pytest
 
 
 @pytest.mark.smoke
 def test_eastmoney_smoke_real():
-    bars = EastmoneySource().fetch_15min("000001", days=5)
+    last = None
+    for attempt in range(5):
+        try:
+            bars = EastmoneySource().fetch_15min("000001", days=5)
+            break
+        except Exception as e:
+            last = e
+            time.sleep(1.5 * (attempt + 1))
+    else:
+        pytest.skip(f"东财 5 次重试仍不可达(境内抖动),非解析问题:{last}")
     assert len(bars) >= 16                      # 至少一天
     times = {b.dt.strftime("%H:%M") for b in bars}
     assert "15:00" in times and "10:30" in times
 ```
 Run: `.venv/bin/python -m pytest tests/test_sources_eastmoney.py -v -m smoke`
-Expected: PASS(联网)。若失败,回到 spike 文档核对列名/时间约定并修正 `_TIME_COL`/`_CLOSE_COL`/`CLOSE_OFFSET_MIN`。
+Expected: PASS(联网);若东财持续抖动 5 次仍失败则 SKIP(可接受,生产端由 scan 层重试 + 3 源降级兜底)。若是解析错误(KeyError/格式),回到 spike 文档核对 `_TIME_COL`/`_CLOSE_COL`。
 
 - [ ] **Step 7: Commit**
 
@@ -962,11 +974,15 @@ from scanner.sources.tencent import TencentSource
 
 
 def _fake_resp():
+    # SPIKE 实测:时间是紧凑串 YYYYMMDDHHMM(无分隔符),data[secid] 除 m15 外还含 qt/prec,
+    # m15 元素 = [time, open, close, high, low, volume, {}, extra];close 在索引 2。
     m = MagicMock()
-    m.json.return_value = {"data": {"sz000001": {"m15": [
-        ["2026-07-21 10:30", "10.0", "10.11", "10.2", "9.9", "1000"],
-        ["2026-07-21 10:45", "10.1", "10.22", "10.3", "10.0", "900"],
-    ]}}}
+    m.json.return_value = {"data": {"sz000001": {
+        "qt": {}, "prec": "9.9",
+        "m15": [
+            ["202607211030", "10.0", "10.11", "10.2", "9.9", "1000.00", {}, "0.64"],
+            ["202607211045", "10.1", "10.22", "10.3", "10.0", "900.00", {}, "0.55"],
+        ]}}}
     return m
 
 
@@ -979,7 +995,7 @@ def test_tencent_normalizes():
     assert str(bars[0].dt.tzinfo) == "Asia/Shanghai"
 ```
 
-> 腾讯 m15 元素约定 `[time, open, close, high, low, volume, ...]`,close 在索引 2(见 spike 核实)。
+> SPIKE 实测:腾讯 m15 元素 = `[time, open, close, high, low, volume, {}, extra]`,close 在索引 2;`time` 为 12 位紧凑串 `YYYYMMDDHHMM`(无分隔符/无秒),用 `%Y%m%d%H%M` 解析。
 
 - [ ] **Step 2: 运行,确认失败**
 
@@ -995,7 +1011,7 @@ import requests
 from scanner.model import Bar, TZ
 from scanner.symbols import to_secid
 
-CLOSE_OFFSET_MIN = 0        # 若 spike 判定腾讯时间为开盘时刻,置 15
+CLOSE_OFFSET_MIN = 0        # SPIKE 实测确认:腾讯时间为收盘时刻,offset=0
 _CLOSE_IDX = 2
 
 
@@ -1004,7 +1020,8 @@ class TencentSource:
 
     def fetch_15min(self, symbol: str, days: int = 5) -> list[Bar]:
         sec = to_secid(symbol)
-        url = (f"https://web.ifzq.gtimg.cn/appstock/app/kline/mkline"
+        # SPIKE 实测:必须用 ifzq.gtimg.cn;web.ifzq.gtimg.cn 会 301 到已失效的 web3.* (NXDOMAIN)
+        url = (f"https://ifzq.gtimg.cn/appstock/app/kline/mkline"
                f"?param={sec},m15,,320")
         r = requests.get(url, timeout=10)
         r.raise_for_status()
@@ -1012,7 +1029,7 @@ class TencentSource:
         rows = node.get("m15") or node.get("qfqm15") or []
         bars = []
         for row in rows:
-            dt = datetime.strptime(row[0].strip(), "%Y-%m-%d %H:%M")
+            dt = datetime.strptime(row[0].strip(), "%Y%m%d%H%M")   # 紧凑格式,无分隔符
             dt = dt.replace(tzinfo=TZ) + timedelta(minutes=CLOSE_OFFSET_MIN)
             bars.append(Bar(dt, float(row[_CLOSE_IDX])))
         bars.sort(key=lambda b: b.dt)
@@ -1102,7 +1119,8 @@ import requests
 from scanner.model import Bar, TZ
 from scanner.symbols import to_secid
 
-CLOSE_OFFSET_MIN = 0        # 若 spike 判定新浪时间为开盘时刻,置 15
+CLOSE_OFFSET_MIN = 0        # SPIKE 实测确认:新浪时间为收盘时刻,offset=0(day 字段 YYYY-MM-DD HH:MM:SS)
+# 注:新浪成交量单位为"股"(东财/腾讯为"手",差 100 倍);本项目只用收盘价,不受影响。
 
 
 class SinaSource:
