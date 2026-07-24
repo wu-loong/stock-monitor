@@ -371,6 +371,7 @@ def results_to_sql(results, trade_date, meta, created_at):
                 f"INSERT INTO signals ({', '.join(scols)}) VALUES ({', '.join(svals)}) "
                 f"ON CONFLICT(trade_date, symbol) DO UPDATE SET {supd};")
     return "\n".join(stmts)
+```
 
 - [ ] **Step 4: 运行,确认通过**
 
