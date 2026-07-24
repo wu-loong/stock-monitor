@@ -1,6 +1,5 @@
 import pytest
 from datetime import date
-from scanner.model import Bar, TZ
 from scanner.scan import scan_symbols, fetch_all_sources
 from tests.conftest import make_series
 

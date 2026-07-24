@@ -1,4 +1,5 @@
 import pandas as pd
+import requests
 from unittest.mock import patch
 from datetime import date
 from scanner.sources.eastmoney import EastmoneySource
@@ -39,7 +40,7 @@ def test_eastmoney_smoke_real():
         try:
             bars = EastmoneySource().fetch_15min("000001", days=5)
             break
-        except Exception as e:
+        except (requests.exceptions.RequestException, ConnectionError, TimeoutError) as e:
             last = e
             time.sleep(1.5 * (attempt + 1))
     else:

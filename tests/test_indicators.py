@@ -32,3 +32,10 @@ def test_state_incomplete_when_no_history():
     bars = make_series({date(2026, 7, 20): [10.0]*16})
     # 只有一天,15分MA20(需20根)在 10:30 只有4根 → incomplete
     assert state_for_date(bars, date(2026, 7, 20)) == "incomplete"
+
+
+def test_state_mixed_on_flat_equal_prices():
+    # Flat prices → A == B at every sample point (within EPS) → neither all_below
+    # nor all_above (strict > EPS rejects equality) → mixed.
+    bars = make_series({d: [50.0] * 16 for d in DATES})
+    assert state_for_date(bars, DATES[-1]) == "mixed"

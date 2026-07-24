@@ -3,11 +3,7 @@ import scanner.indicators as ind
 import scanner.signals as sig
 from scanner.model import Bar, TZ
 from scanner.evaluate import evaluate_symbol
-from tests.conftest import make_day, make_series
-
-
-def _b(d, hh, mm, c):
-    return Bar(datetime(d.year, d.month, d.day, hh, mm, tzinfo=TZ), c)
+from tests.conftest import make_series
 
 
 def test_conflict_bar_forces_unavailable_or_conflict():

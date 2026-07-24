@@ -1,4 +1,4 @@
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from scanner.model import Bar, TZ
 
 BAR_TIMES = ["09:45","10:00","10:15","10:30","10:45","11:00","11:15","11:30",

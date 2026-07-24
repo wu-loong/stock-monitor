@@ -1,4 +1,4 @@
-from scanner.model import ConsensusBar, PRICE_TOL
+from scanner.model import ConsensusBar, PRICE_TOL, EPS
 
 
 def cross_validate(series_by_source, tol=PRICE_TOL):
@@ -11,7 +11,7 @@ def cross_validate(series_by_source, tol=PRICE_TOL):
             out.append(ConsensusBar(dt, None, "missing"))
         elif len(vals) == 1:
             out.append(ConsensusBar(dt, vals[0], "unverified"))
-        elif max(vals) - min(vals) <= tol + 1e-9:
+        elif max(vals) - min(vals) <= tol + EPS:
             out.append(ConsensusBar(dt, sum(vals) / len(vals), "confirmed"))
         else:
             out.append(ConsensusBar(dt, None, "conflict"))
