@@ -1,0 +1,9 @@
+name = "stock-monitor"
+account_id = "3b629bc8851543c10495cd19fc52ea32"
+compatibility_date = "2026-07-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "stock-monitor"
+database_id = "f6280b2e-0b0a-4b17-bcba-0fdcb24792e5"
+migrations_dir = "migrations"
