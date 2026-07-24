@@ -230,6 +230,7 @@ CREATE TABLE signals (
 
 - 三源从美国 GitHub runner 的**可达性与限流**(最大不确定性)——spike 先验证。
   - **本地(境内)实测发现**(2026-07-24):东财 spot 分页接口拉到一半被断、深交所 szse.cn SSL 直接失败;仅轻量接口(中证成分、全 A 股代码表)稳定。**重接口即使在境内也会抖**,美国 runner 只会更糟 → 坚持用轻量单只 15minK 接口 + 强重试。
+  - **✅ 已解决(2026-07-24 US-runner spike,见 `docs/superpowers/spikes/2026-07-24-us-runner-reachability.md`)**:在真实 GitHub `ubuntu-latest` runner 上,**腾讯 4/4、新浪 4/4 可达且数据一致,东财 0/4 恒挂**。判定 **GO**。**生产 runner 数据源改为 腾讯+新浪 两源**(东财境外不可达,移出 runner 列表,请求量降为 ~5700/天);两源一致即 `confirmed`。
 - 三源**时间戳约定差异**——归一化适配层需实测校准。
 - GitHub Actions 定时**不准 / 漏跑**——游标自愈缓解;某日可能延迟至晚间完成。
 - 仓库可见性:**已定为公开仓**(GH Actions 分钟无限;代码不含密钥,CF Token 在 GH Secret;D1 数据本就经公开页面展示,无额外泄露)。约 10 实跑 run/天 × ~10 min ≈ 2400+ min/月,私有仓 2000 免费分钟不够。
