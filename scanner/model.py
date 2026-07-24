@@ -6,7 +6,8 @@ TZ = ZoneInfo("Asia/Shanghai")
 SAMPLE_TIMES = ("10:30", "11:30", "14:00", "15:00")
 HOURLY_WINDOW = 5
 MIN15_WINDOW = 20
-PRICE_TOL = 0.01
+PRICE_TOL = 0.05          # 跨源一致的绝对下限(元);低价股用。原 0.01 太严,盘中两源常差几分钱
+PRICE_TOL_REL = 0.005     # 跨源一致的相对容差(0.5% × 均价);高价股用。取二者较大值
 EPS = 1e-9
 
 
