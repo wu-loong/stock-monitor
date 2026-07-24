@@ -1,6 +1,6 @@
 import json
 from scanner.scan import scan_symbols
-from scanner.persist import results_to_sql
+from scanner.persist import results_to_sql, sql_escape
 from scanner.indicators import sample_index
 
 
@@ -17,20 +17,20 @@ def is_trading_closed(sources, benchmark, target_date):
 
 
 def ensure_run_state(client, trade_date, universe, batch_size):
-    rows = client.query(f"SELECT * FROM run_state WHERE trade_date='{trade_date}';")
+    rows = client.query(f"SELECT * FROM run_state WHERE trade_date={sql_escape(trade_date)};")
     if rows:
         return rows[0]
     syms = [r["symbol"] for r in universe]
     total = (len(syms) + batch_size - 1) // batch_size
-    uni_json = json.dumps(syms).replace("'", "''")
+    uni_json = json.dumps(syms)
     client.execute(
         f"INSERT INTO run_state (trade_date, universe_json, total_batches, next_batch, status, updated_at) "
-        f"VALUES ('{trade_date}', '{uni_json}', {total}, 0, 'running', '{trade_date}');")
-    return client.query(f"SELECT * FROM run_state WHERE trade_date='{trade_date}';")[0]
+        f"VALUES ({sql_escape(trade_date)}, {sql_escape(uni_json)}, {total}, 0, {sql_escape('running')}, {sql_escape(trade_date)});")
+    return client.query(f"SELECT * FROM run_state WHERE trade_date={sql_escape(trade_date)};")[0]
 
 
 def run_batch(client, sources, universe, meta, trade_date, created_at, batch_size):
-    st = client.query(f"SELECT * FROM run_state WHERE trade_date='{trade_date}';")[0]
+    st = client.query(f"SELECT * FROM run_state WHERE trade_date={sql_escape(trade_date)};")[0]
     if st["status"] == "done":
         return {"status": "done", "note": "already done"}
     nb = st["next_batch"]
@@ -43,8 +43,8 @@ def run_batch(client, sources, universe, meta, trade_date, created_at, batch_siz
     nb += 1
     status = "done" if nb >= st["total_batches"] else "running"
     client.execute(
-        f"UPDATE run_state SET next_batch={nb}, status='{status}', updated_at='{created_at}' "
-        f"WHERE trade_date='{trade_date}';")
+        f"UPDATE run_state SET next_batch={nb}, status={sql_escape(status)}, updated_at={sql_escape(created_at)} "
+        f"WHERE trade_date={sql_escape(trade_date)};")
     return {"status": status, "batch": nb - 1, "summary": summary}
 
 

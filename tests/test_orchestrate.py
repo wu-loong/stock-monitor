@@ -1,4 +1,3 @@
-from datetime import date
 from scanner.d1client import SqliteD1Client
 from scanner.orchestrate import ensure_run_state, run_once
 from tests.conftest import make_series
