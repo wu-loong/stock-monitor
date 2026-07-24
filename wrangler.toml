@@ -1,6 +1,11 @@
 name = "stock-monitor"
 account_id = "3b629bc8851543c10495cd19fc52ea32"
 compatibility_date = "2026-07-01"
+main = "src/index.js"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
 
 [[d1_databases]]
 binding = "DB"
