@@ -17,7 +17,7 @@ def main():
     now = datetime.now(TZ)
     trade_date = now.date()
     sources = [TencentSource(), SinaSource()]     # 东财境外 runner 不可达,生产不用
-    if not is_trading_closed(sources, "000001", trade_date):
+    if not is_trading_closed(sources, ["600519", "000001", "300750", "688981"], trade_date):
         print(f"[{now.isoformat()}] 非交易日或未收盘,退出。")
         return
     universe = load_universe("universe.json")

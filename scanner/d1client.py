@@ -1,6 +1,8 @@
 import json
+import os
 import sqlite3
 import subprocess
+import tempfile
 from typing import Protocol
 
 
@@ -42,4 +44,13 @@ class WranglerD1Client:
         return data[0]["results"] if data else []
 
     def execute(self, sql: str) -> None:
-        self._run(sql, json_out=False)
+        """大批量 SQL 经临时 .sql 文件用 --file 传入,避免超出 execve 的
+        MAX_ARG_STRLEN(单条 --command 参数上限,Linux 128 KiB)。"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sql", delete=False) as f:
+            f.write(sql)
+            path = f.name
+        try:
+            cmd = self._wrangler + ["d1", "execute", self._db, self._flag, "--file", path]
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
+        finally:
+            os.remove(path)
