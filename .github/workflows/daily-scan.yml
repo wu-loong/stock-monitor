@@ -21,7 +21,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 120          # 容纳 loop 回填(一次性跑完约 1 小时);单批 cron 远低于此
+    timeout-minutes: 180          # 全市场一次性回填实测 ~119min/120min 擦线,给足余量;单批 cron 远低于此
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
